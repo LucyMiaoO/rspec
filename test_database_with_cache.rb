@@ -9,7 +9,7 @@ describe DatabaseWithCache do
       @target = DatabaseWithCache.new @database_mock, @memcached_mock 
    end
   #test isbnSearch
-   describe "#isbnSearch" do
+  describe "#isbnSearch" do
       context "Given the book ISBN is valid" do
         context "and it is not in the local cache" do
           context "nor in the remote cache" do
@@ -71,6 +71,45 @@ describe DatabaseWithCache do
         end 
       end
     end
+  #test updateBook
+  describe "#updateBook" do
+    context "update the book1111" do
+      context "there is no book1111 in remote cache version" do
+        it "should be updated in database" do
+          expect(@database_mock).to receive(:updateBook).with(@book1111) 
+          expect(@memcached_mock).to receive(:get).with('v_1111').and_return nil 
+          @target.updateBook(@book1111)
+        end
+      end
+      context "The book1111 is in remote cache version" do
+        context "it is not in the local cache" do
+          it "should be updated in database and remote cache" do
+            expect(@database_mock).to receive(:updateBook).with(@book1111) 
+            expect(@memcached_mock).to receive(:get).with('v_1111').and_return 1 
+            expect(@memcached_mock).to receive(:set).with('v_1111',2) 
+            expect(@memcached_mock).to receive(:set).with('1111_2',@book1111.to_cache) 
+            @target.updateBook(@book1111)
+          end
+        end
+      end
+      context "it is in the local cache" do
+        it "should be updated in database and both cache" do
+          expect(@database_mock).to_not receive(:isbnSearch) 
+          expect(@memcached_mock).to receive(:get).with('v_1111').and_return 1 
+          expect(@memcached_mock).to receive(:get).with('1111_1').and_return 
+          @book1111.to_cache result = @target.isbnSearch('1111')
+          expect(result).to eq @book1111
+          @book1111 = Book.new('1111','title updated','author 1','12.99','Programming','20')
+
+          expect(@database_mock).to receive(:updateBook).with(@book1111) 
+          expect(@memcached_mock).to receive(:get).with('v_1111').and_return 1 
+          expect(@memcached_mock).to receive(:set).with('v_1111',2) 
+          expect(@memcached_mock).toreceive(:set).with('1111_2',@book1111.to_cache) 
+          @target.updateBook(@book1111)
+        end
+      end
+    end
+
   end     
 end
   
