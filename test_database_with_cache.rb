@@ -1,13 +1,18 @@
 require_relative "./database_with_cache"
 require "rspec/mocks"
+require "json"
 
 describe DatabaseWithCache do
   before(:each) do
       @book1111 = Book.new('1111','title 1','author 1',12.99, 'Programming', 20 )
+      @book1111 = Book.new('5555','title 5','author 5',15.68, 'Programming', 22 )
       @memcached_mock = double()
       @database_mock = double()
-      @target = DatabaseWithCache.new @database_mock, @memcached_mock 
+      @target = DatabaseWithCache.new @database_mock, @memcached_mock
+      @search_array = {"books"=>[{"title"=>"title 1", "isbn"=>"1111"}, {"title"=>"title 5", "isbn"=>"5555"}], "value"=>604.76}
+      @json1 = @search_array.to_json
    end
+
   #test isbnSearch
   describe "#isbnSearch" do
       context "Given the book ISBN is valid" do
@@ -110,7 +115,38 @@ describe DatabaseWithCache do
       end
     end
   end
-
-  end     
+  #test authorSearch"
+  describe "#authorSearch" do
+    context "Given the book author is valid" do 
+      context "the author is in the remote cache" do
+        context "it is updated" do
+          it "should return the json value" do
+            expect(@database_mock).to_not receive(:authorSearch).with("author 1")
+            expect(@memcached_mock).to receive(:get).with("bks_author 1").and_return '1111,5555'
+            expect(@memcached_mock).to receive(:get).with("v_1111").and_return '1' 
+            expect(@memcached_mock).to receive(:get).with("v_5555").and_return '5' 
+            expect(@memcached_mock).to receive(:get).with("author 1_1111_1_5555_1").and_return 
+            
+            result = @target.authorSearch('author 1')
+            expect(result).to eq @search_array
+          end
+        end
+        context "and it is outdated" do
+           it "should be updated and stored in remote cache" do
+            expect(@database_mock).to_not receive(:authorSearch).with("author 1")
+            expect(@memcached_mock).to receive(:get).with("bks_author 1").and_return '1111,5555'
+            expect(@memcached_mock).to receive(:get).with("v_1111").and_return '1' 
+            expect(@memcached_mock).to receive(:get).with("v_5555").and_return '5' 
+            expect(@memcached_mock).to receive(:get).with("author 1_1111_1_5555_5").and_return nil
+            expect(@memcached_mock).to receive(:get).with("1111_1").and_return @book1111.to_cache 
+            expect(@memcached_mock).to receive(:get).with("5555_5").and_return @book5555.to_cache 
+            expect(@memcached_mock).to receive(:set).with("author 1_1111_1_1234_5",@json1)
+            result = @target.authorSearch('author 1') 
+            expect(result).to eq @search_array
+           end
+        end
+      end
+    end
+  end    
 end
   
