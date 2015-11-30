@@ -8,7 +8,7 @@ describe DatabaseWithCache do
       @database_mock = double()
       @target = DatabaseWithCache.new @database_mock, @memcached_mock 
    end
-
+  #test isbnSearch
    describe "#isbnSearch" do
       context "Given the book ISBN is valid" do
         context "and it is not in the local cache" do
